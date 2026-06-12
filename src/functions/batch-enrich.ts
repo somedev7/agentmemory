@@ -93,9 +93,12 @@ export function parseEnrichmentResponse(
   response: string,
 ): Map<string, ParsedEnrichment> {
   const out = new Map<string, ParsedEnrichment>();
-  const blockRe = /<obs\s+id="([^"]+)"\s*>([\s\S]*?)<\/obs>/g;
+  // Models occasionally wrap output in markdown fences despite the
+  // instructions; strip them before matching. Accept both quote styles.
+  const cleaned = response.replace(/```[a-zA-Z]*\n?/g, "");
+  const blockRe = /<obs\s+id=["']([^"']+)["']\s*>([\s\S]*?)<\/obs>/g;
   let m: RegExpExecArray | null;
-  while ((m = blockRe.exec(response)) !== null) {
+  while ((m = blockRe.exec(cleaned)) !== null) {
     const id = m[1];
     const body = m[2];
     const title = getXmlTag(body, "title");
@@ -165,22 +168,50 @@ export function registerBatchEnrichFunction(
         return { success: true, enriched: 0, requested: 0, pending: 0 };
       }
 
-      const userPrompt = batch.map(buildInputBlock).join("\n");
+      // Agent CLIs degrade on very large single prompts (observed: 79 obs /
+      // ~80KB in → 2.6KB non-conformant answer, 0 parsed). Sub-chunk the
+      // batch; the provider serializes calls anyway, and each chunk stays
+      // in the size range where format compliance is reliable.
+      const chunkSize = intEnv("AGENTMEMORY_BATCH_ENRICH_CHUNK", 25);
       const startMs = Date.now();
+      const parsed = new Map<string, ParsedEnrichment>();
+      let providerError: string | undefined;
 
-      let response: string;
-      try {
-        response = await provider.compress(BATCH_ENRICH_SYSTEM, userPrompt);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        logger.warn("batch-enrich provider call failed", {
-          batch: batch.length,
-          error: msg,
-        });
-        return { success: false, error: msg, requested: batch.length, pending };
+      for (let i = 0; i < batch.length; i += chunkSize) {
+        const chunk = batch.slice(i, i + chunkSize);
+        const userPrompt = chunk.map(buildInputBlock).join("\n");
+        let response: string;
+        try {
+          response = await provider.compress(BATCH_ENRICH_SYSTEM, userPrompt);
+        } catch (err) {
+          providerError = err instanceof Error ? err.message : String(err);
+          logger.warn("batch-enrich provider call failed", {
+            chunk: chunk.length,
+            error: providerError,
+          });
+          // Cap / circuit / spawn errors won't clear up mid-tick;
+          // keep whatever earlier chunks produced.
+          break;
+        }
+        const chunkParsed = parseEnrichmentResponse(response || "");
+        if (chunkParsed.size === 0) {
+          logger.warn("batch-enrich chunk parsed to zero obs", {
+            chunk: chunk.length,
+            responseChars: (response || "").length,
+            responseSample: (response || "").slice(0, 300),
+          });
+        }
+        for (const [id, e] of chunkParsed) parsed.set(id, e);
       }
 
-      const parsed = parseEnrichmentResponse(response || "");
+      if (parsed.size === 0 && providerError) {
+        return {
+          success: false,
+          error: providerError,
+          requested: batch.length,
+          pending,
+        };
+      }
       let enriched = 0;
       const enrichedIds: string[] = [];
       const now = new Date().toISOString();
@@ -237,6 +268,7 @@ export function registerBatchEnrichFunction(
         unparsed: batch.length - enriched,
         pending,
         latencyMs,
+        ...(providerError ? { providerError } : {}),
       };
     },
   );

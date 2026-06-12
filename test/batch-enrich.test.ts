@@ -275,4 +275,60 @@ describe("parseEnrichmentResponse", () => {
     expect(parsed.has("b")).toBe(false);
     expect(parsed.get("a")!.importance).toBe(4);
   });
+
+  it("tolerates markdown fences and single-quoted ids", () => {
+    const fenced = "```xml\n" + enrichmentXml(["a"]) + "\n```";
+    expect(parseEnrichmentResponse(fenced).has("a")).toBe(true);
+    const singleQuoted = enrichmentXml(["b"]).replace('id="b"', "id='b'");
+    expect(parseEnrichmentResponse(singleQuoted).has("b")).toBe(true);
+  });
+});
+
+describe("mem::batch-enrich chunking", () => {
+  it("splits large batches into sub-chunk provider calls", async () => {
+    process.env.AGENTMEMORY_BATCH_ENRICH_CHUNK = "2";
+    try {
+      const provider = makeProvider((user) => {
+        const ids = [...user.matchAll(/<input id="([^"]+)"/g)].map((m) => m[1]);
+        expect(ids.length).toBeLessThanOrEqual(2); // chunk size respected
+        return enrichmentXml(ids);
+      });
+      const obs = Array.from({ length: 5 }, (_, i) => syntheticObs(i, "ses1"));
+      const { handler } = await setup({ obs, provider });
+
+      const result: any = await handler({});
+
+      expect(result.enriched).toBe(5);
+      expect(provider.calls).toHaveLength(3); // 2 + 2 + 1
+    } finally {
+      delete process.env.AGENTMEMORY_BATCH_ENRICH_CHUNK;
+    }
+  });
+
+  it("keeps earlier chunk results when a later chunk call fails", async () => {
+    process.env.AGENTMEMORY_BATCH_ENRICH_CHUNK = "2";
+    try {
+      let call = 0;
+      const provider: MemoryProvider = {
+        name: "gemini-cli",
+        compress: async (_s: string, user: string) => {
+          call += 1;
+          if (call > 1) throw new Error("gemini_cli_daily_cap_reached: 250/250");
+          const ids = [...user.matchAll(/<input id="([^"]+)"/g)].map((m) => m[1]);
+          return enrichmentXml(ids);
+        },
+        summarize: async () => "",
+      };
+      const obs = Array.from({ length: 4 }, (_, i) => syntheticObs(i, "ses1"));
+      const { handler } = await setup({ obs, provider });
+
+      const result: any = await handler({});
+
+      expect(result.success).toBe(true);
+      expect(result.enriched).toBe(2); // first chunk landed
+      expect(result.providerError).toContain("daily_cap_reached");
+    } finally {
+      delete process.env.AGENTMEMORY_BATCH_ENRICH_CHUNK;
+    }
+  });
 });
