@@ -181,8 +181,11 @@ export class GeminiCliProvider implements MemoryProvider {
 
   private spawnCli(instruction: string, stdinPayload: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
+      // Classic gemini CLI indexes its cwd as a workspace — point it at an
+      // empty directory, not tmpdir() full of unreadable system entries.
+      const cwd = getEnvVar("AGENTMEMORY_GEMINI_CLI_CWD") || tmpdir();
       const child = spawn(this.bin, ["-p", instruction, ...this.extraArgs], {
-        cwd: tmpdir(),
+        cwd,
         env: {
           ...process.env,
           // Cross-process recursion guard: any agentmemory hook inside the
