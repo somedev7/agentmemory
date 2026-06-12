@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
-import { tmpdir, homedir } from "node:os";
-import { dirname, join } from "node:path";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import type { MemoryProvider } from "../types.js";
 import { getEnvVar } from "../config.js";
 import { logger } from "../logger.js";
+import { CliQuota, HEADLESS_RULES, parseExtraArgs } from "./agent-cli.js";
+import type { QuotaLedger } from "./agent-cli.js";
 
 // Fork-only provider (not for upstream): routes LLM work through the
 // locally installed Gemini agent CLI — Antigravity (`agy`) by default,
@@ -13,90 +13,33 @@ import { logger } from "../logger.js";
 // payload on stdin and an instruction via `-p`, and print the bare
 // response to stdout in headless mode.
 //
-// Calls are strictly serialized: subscription quotas are concurrency-
-// and volume-limited, and the intended workload (mem::batch-enrich every
-// ~20 minutes, one summarize per session, periodic consolidation) never
-// needs parallelism. A local per-day ledger persisted to
-// gemini-cli-quota.json tracks usage and enforces a daily call cap,
-// since the subscription side exposes no quota API.
+// Serialization and the per-day quota ledger (gemini-cli-quota.json,
+// daily call cap) live in the shared agent-cli machinery — see
+// providers/agent-cli.ts.
 
-interface QuotaDay {
-  calls: number;
-  ok: number;
-  failed: number;
-  quotaHits: number;
-  inChars: number;
-  outChars: number;
-}
+const quota = new CliQuota({
+  label: "gemini-cli",
+  fileEnvVar: "AGENTMEMORY_GEMINI_CLI_QUOTA_FILE",
+  defaultFileName: "gemini-cli-quota.json",
+  capEnvVar: "AGENTMEMORY_GEMINI_CLI_DAILY_CAP",
+});
 
-export interface QuotaLedger {
-  days: Record<string, QuotaDay>;
-  lastCallAt?: string;
-  lastError?: string;
-  updatedAt?: string;
-}
-
-const LEDGER_KEEP_DAYS = 30;
+export type { QuotaLedger };
 
 export function quotaLedgerPath(): string {
-  return (
-    getEnvVar("AGENTMEMORY_GEMINI_CLI_QUOTA_FILE") ||
-    join(homedir(), ".agentmemory", "gemini-cli-quota.json")
-  );
+  return quota.path();
 }
 
 export function readQuotaLedger(): QuotaLedger {
-  try {
-    const raw = readFileSync(quotaLedgerPath(), "utf-8");
-    const parsed = JSON.parse(raw) as QuotaLedger;
-    if (parsed && typeof parsed === "object" && parsed.days) return parsed;
-  } catch {
-    // missing or corrupt ledger — start fresh
-  }
-  return { days: {} };
-}
-
-function writeQuotaLedger(ledger: QuotaLedger): void {
-  try {
-    const path = quotaLedgerPath();
-    mkdirSync(dirname(path), { recursive: true });
-    const dayKeys = Object.keys(ledger.days).sort();
-    for (const key of dayKeys.slice(0, Math.max(0, dayKeys.length - LEDGER_KEEP_DAYS))) {
-      delete ledger.days[key];
-    }
-    ledger.updatedAt = new Date().toISOString();
-    writeFileSync(path, JSON.stringify(ledger, null, 2));
-  } catch (err) {
-    logger.warn("gemini-cli quota ledger write failed", {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
-
-/** Local-date key — the cap is a local safety budget, not Google's window. */
-function todayKey(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function emptyDay(): QuotaDay {
-  return { calls: 0, ok: 0, failed: 0, quotaHits: 0, inChars: 0, outChars: 0 };
+  return quota.read();
 }
 
 export function dailyCap(): number {
-  const raw = getEnvVar("AGENTMEMORY_GEMINI_CLI_DAILY_CAP");
-  const n = raw ? parseInt(raw, 10) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : 250;
+  return quota.cap();
 }
 
 const QUOTA_ERROR_RE =
   /429|RESOURCE_EXHAUSTED|quota.{0,40}(exceeded|exhausted|limit)|rate.?limit/i;
-
-const HEADLESS_RULES =
-  "\n\nIMPORTANT: You are running headless inside an automated pipeline. " +
-  "Do not use any tools. Do not ask questions. Reply with ONLY the " +
-  "requested output format — no preamble, no commentary, no markdown fences.";
 
 export class GeminiCliProvider implements MemoryProvider {
   name = "gemini-cli";
@@ -135,46 +78,25 @@ export class GeminiCliProvider implements MemoryProvider {
   }
 
   private async invoke(systemPrompt: string, userPrompt: string): Promise<string> {
-    const ledger = readQuotaLedger();
-    const key = todayKey();
-    const day = (ledger.days[key] ??= emptyDay());
-    const cap = dailyCap();
-    if (day.calls >= cap) {
-      throw new Error(
-        `gemini_cli_daily_cap_reached: ${day.calls}/${cap} calls today — ` +
-          `raise AGENTMEMORY_GEMINI_CLI_DAILY_CAP or wait for the next local day`,
-      );
-    }
-    day.calls += 1;
-    day.inChars += systemPrompt.length + userPrompt.length;
-    ledger.lastCallAt = new Date().toISOString();
-    writeQuotaLedger(ledger);
+    const inChars = systemPrompt.length + userPrompt.length;
+    quota.begin(inChars);
 
     const startMs = Date.now();
     try {
       const out = await this.spawnCli(systemPrompt + HEADLESS_RULES, userPrompt);
-      const done = readQuotaLedger();
-      const doneDay = (done.days[key] ??= emptyDay());
-      doneDay.ok += 1;
-      doneDay.outChars += out.length;
-      writeQuotaLedger(done);
+      const day = quota.success(out.length);
       logger.info("gemini-cli call ok", {
         bin: this.bin,
         latencyMs: Date.now() - startMs,
-        inChars: systemPrompt.length + userPrompt.length,
+        inChars,
         outChars: out.length,
-        callsToday: doneDay.calls,
-        cap,
+        callsToday: day.calls,
+        cap: quota.cap(),
       });
       return out;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const done = readQuotaLedger();
-      const doneDay = (done.days[key] ??= emptyDay());
-      doneDay.failed += 1;
-      if (QUOTA_ERROR_RE.test(msg)) doneDay.quotaHits += 1;
-      done.lastError = msg.slice(0, 500);
-      writeQuotaLedger(done);
+      quota.failure(msg, QUOTA_ERROR_RE);
       throw err;
     }
   }
@@ -246,12 +168,4 @@ export class GeminiCliProvider implements MemoryProvider {
       child.stdin.end(stdinPayload);
     });
   }
-}
-
-function parseExtraArgs(raw: string | undefined): string[] {
-  if (!raw || !raw.trim()) return [];
-  return raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
 }

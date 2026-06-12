@@ -71,6 +71,17 @@ function detectProvider(env: Record<string, string>): ProviderConfig {
     };
   }
 
+  // Fork-only explicit override: "codex-cli" routes ALL LLM work through
+  // the locally installed OpenAI Codex CLI (billed to the user's ChatGPT
+  // subscription). Same precedence as gemini-cli above.
+  if (env["AGENTMEMORY_PROVIDER"] === "codex-cli") {
+    return {
+      provider: "codex-cli",
+      model: env["AGENTMEMORY_CODEX_CLI_MODEL"] || "gpt-5.4-mini",
+      maxTokens,
+    };
+  }
+
   // OpenAI-compatible: supports OpenAI, DeepSeek, SiliconFlow, Azure, vLLM, LM Studio
   if (hasRealValue(env["OPENAI_API_KEY"]) && env["OPENAI_API_KEY_FOR_LLM"] !== "false") {
     return {
@@ -442,6 +453,8 @@ export function getStandalonePersistPath(): string {
 const VALID_PROVIDERS = new Set([
   "anthropic",
   "gemini",
+  "gemini-cli",
+  "codex-cli",
   "openrouter",
   "agent-sdk",
   "minimax",

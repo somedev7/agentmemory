@@ -7,6 +7,11 @@ import { getLatestHealth } from "../health/monitor.js";
 import type { MetricsStore } from "../eval/metrics-store.js";
 import type { ResilientProvider } from "../providers/resilient.js";
 import { readQuotaLedger, dailyCap } from "../providers/gemini-cli.js";
+import {
+  readQuotaLedger as readCodexQuotaLedger,
+  dailyCap as codexDailyCap,
+} from "../providers/codex-cli.js";
+import type { QuotaLedger } from "../providers/agent-cli.js";
 import { VERSION } from "../version.js";
 import { timingSafeCompare } from "../auth.js";
 import { isSlotsEnabled, isReflectEnabled } from "../functions/slots.js";
@@ -701,8 +706,7 @@ export function registerApiTriggers(
     },
   });
 
-  sdk.registerFunction("api::gemini-cli-quota", async (): Promise<Response> => {
-    const ledger = readQuotaLedger();
+  const quotaResponse = (ledger: QuotaLedger, cap: number): Response => {
     const today = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const key = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
@@ -714,7 +718,6 @@ export function registerApiTriggers(
       inChars: 0,
       outChars: 0,
     };
-    const cap = dailyCap();
     return {
       status_code: 200,
       body: {
@@ -724,12 +727,29 @@ export function registerApiTriggers(
         days: ledger.days,
       },
     };
+  };
+
+  sdk.registerFunction("api::gemini-cli-quota", async (): Promise<Response> => {
+    return quotaResponse(readQuotaLedger(), dailyCap());
   });
   sdk.registerTrigger({
     type: "http",
     function_id: "api::gemini-cli-quota",
     config: {
       api_path: "/agentmemory/quota/gemini-cli",
+      http_method: "GET",
+      middleware_function_ids: ["middleware::api-auth"],
+    },
+  });
+
+  sdk.registerFunction("api::codex-cli-quota", async (): Promise<Response> => {
+    return quotaResponse(readCodexQuotaLedger(), codexDailyCap());
+  });
+  sdk.registerTrigger({
+    type: "http",
+    function_id: "api::codex-cli-quota",
+    config: {
+      api_path: "/agentmemory/quota/codex-cli",
       http_method: "GET",
       middleware_function_ids: ["middleware::api-auth"],
     },
