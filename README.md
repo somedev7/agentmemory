@@ -866,8 +866,8 @@ PostToolUse hook fires
   -> Vector embedding (6 providers + local)
   -> Index in BM25 + vector
 
-Stop / SessionEnd hook fires
-  -> Summarize session
+SessionEnd hook fires (or Stop, if AGENTMEMORY_SUMMARIZE_ON_STOP=true)
+  -> Summarize session (skipped when the stored summary already covers all observations)
   -> Knowledge graph extraction (if GRAPH_EXTRACTION_ENABLED=true)
   -> Slot reflection (if SLOT_REFLECT_ENABLED=true)
 
@@ -902,8 +902,8 @@ Memories decay over time (Ebbinghaus curve). Frequently accessed memories streng
 | `PostToolUseFailure` | Error context |
 | `PreCompact` | Re-injects memory before compaction |
 | `SubagentStart/Stop` | Sub-agent lifecycle |
-| `Stop` | End-of-session summary |
-| `SessionEnd` | Session complete marker |
+| `Stop` | No-op by default (per-turn summary with `AGENTMEMORY_SUMMARIZE_ON_STOP=true`) |
+| `SessionEnd` | Session complete marker + session summary |
 
 ### Key Capabilities
 

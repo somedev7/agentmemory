@@ -232,8 +232,8 @@ export function registerSummarizeFunction(
   provider: MemoryProvider,
   metricsStore?: MetricsStore,
 ): void {
-  sdk.registerFunction("mem::summarize", 
-    async (data: { sessionId: string } | undefined) => {
+  sdk.registerFunction("mem::summarize",
+    async (data: { sessionId: string; force?: boolean } | undefined) => {
       const startMs = Date.now();
       if (!data || typeof data.sessionId !== "string" || !data.sessionId.trim()) {
         return { success: false, error: "sessionId is required" };
@@ -258,6 +258,22 @@ export function registerSummarizeFunction(
           sessionId,
         });
         return { success: false, error: "no_observations" };
+      }
+
+      // Stop (opt-in), SessionEnd, and manual POST /agentmemory/summarize
+      // can all request a summary for the same session. When the stored
+      // summary already covers every compressed observation there is
+      // nothing new to say — return it instead of re-running the LLM over
+      // the whole session. Pass force=true to bypass.
+      if (!data.force) {
+        const existing = await kv.get<SessionSummary>(KV.summaries, sessionId);
+        if (existing && existing.observationCount === compressed.length) {
+          logger.info("Summary already current — skipping LLM call", {
+            sessionId,
+            observationCount: compressed.length,
+          });
+          return { success: true, summary: existing, skipped: true };
+        }
       }
 
       if (provider.name === "noop") {

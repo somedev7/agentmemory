@@ -37,6 +37,14 @@ async function main() {
     return;
   }
 
+  // Stop fires after EVERY assistant turn, not at session end. Summarizing
+  // from here ran a full-session LLM pass per turn — twice, since
+  // /session/end fans out event::session::stopped which calls
+  // mem::summarize again — so provider spend grew with session length on
+  // every single turn. SessionEnd owns the summary now; opt back into
+  // per-turn summaries with AGENTMEMORY_SUMMARIZE_ON_STOP=true.
+  if (process.env["AGENTMEMORY_SUMMARIZE_ON_STOP"] !== "true") return;
+
   const sessionId = ((data.session_id || data.sessionId) as string) || "unknown";
 
   fetch(`${REST_URL}/agentmemory/summarize`, {

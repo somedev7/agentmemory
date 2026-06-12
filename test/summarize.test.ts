@@ -480,3 +480,67 @@ describe("mem::summarize chunking", () => {
     expect(result.error).toBe("parse_failed");
   });
 });
+
+describe("mem::summarize idempotence guard", () => {
+  it("skips the LLM when the stored summary already covers all observations", async () => {
+    const provider = makeProvider([summaryXml({ title: "first pass" })]);
+    const { handler } = await setupHandler({
+      sessionId: "ses_idem",
+      obsCount: 5,
+      provider,
+    });
+
+    const first: any = await handler({ sessionId: "ses_idem" });
+    expect(first.success).toBe(true);
+    expect(provider.calls).toHaveLength(1);
+
+    const second: any = await handler({ sessionId: "ses_idem" });
+    expect(second.success).toBe(true);
+    expect(second.skipped).toBe(true);
+    expect(second.summary.title).toBe("first pass");
+    expect(provider.calls).toHaveLength(1); // no second LLM call
+  });
+
+  it("re-summarizes when new observations arrived since the stored summary", async () => {
+    const provider = makeProvider([
+      summaryXml({ title: "first pass" }),
+      summaryXml({ title: "second pass" }),
+    ]);
+    const { handler, kv } = await setupHandler({
+      sessionId: "ses_grow",
+      obsCount: 3,
+      provider,
+    });
+
+    await handler({ sessionId: "ses_grow" });
+    expect(provider.calls).toHaveLength(1);
+
+    const extra = makeObs(99, "ses_grow");
+    await kv.set("obs:ses_grow", extra.id, extra);
+
+    const second: any = await handler({ sessionId: "ses_grow" });
+    expect(second.success).toBe(true);
+    expect(second.skipped).toBeUndefined();
+    expect(second.summary.title).toBe("second pass");
+    expect(provider.calls).toHaveLength(2);
+  });
+
+  it("force=true bypasses the guard and re-runs the LLM", async () => {
+    const provider = makeProvider([
+      summaryXml({ title: "first pass" }),
+      summaryXml({ title: "forced pass" }),
+    ]);
+    const { handler } = await setupHandler({
+      sessionId: "ses_force",
+      obsCount: 4,
+      provider,
+    });
+
+    await handler({ sessionId: "ses_force" });
+    const forced: any = await handler({ sessionId: "ses_force", force: true });
+
+    expect(forced.success).toBe(true);
+    expect(forced.summary.title).toBe("forced pass");
+    expect(provider.calls).toHaveLength(2);
+  });
+});

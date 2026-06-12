@@ -22,6 +22,7 @@ async function main() {
 		return;
 	}
 	if (isSdkChildContext(data)) return;
+	if (process.env["AGENTMEMORY_SUMMARIZE_ON_STOP"] !== "true") return;
 	const sessionId = data.session_id || data.sessionId || "unknown";
 	fetch(`${REST_URL}/agentmemory/summarize`, {
 		method: "POST",
@@ -38,7 +39,7 @@ async function main() {
 	setTimeout(() => process.exit(0), 1500).unref();
 }
 main();
-
 //#endregion
-export {  };
+export {};
+
 //# sourceMappingURL=stop.mjs.map
