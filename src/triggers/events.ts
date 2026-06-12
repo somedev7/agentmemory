@@ -65,13 +65,28 @@ export function registerEventTriggers(sdk: ISdk, kv: StateKV): void {
         const observations = await kv.list<CompressedObservation>(
           KV.observations(data.sessionId),
         );
-        const compressed = observations.filter((o) => o.title);
+        // session::stopped can fire more than once per session (SessionEnd
+        // hook, viewer, opt-in Stop hook) — re-sending the whole session
+        // re-pays the LLM for edges it already extracted. Only send
+        // observations newer than the last extraction watermark.
+        const session = await kv.get<Session>(KV.sessions, data.sessionId);
+        const since = session?.graphExtractedAt;
+        const compressed = observations.filter(
+          (o) => o.title && (!since || o.timestamp > since),
+        );
         if (compressed.length > 0) {
           sdk.trigger({
             function_id: "mem::graph-extract",
             payload: { observations: compressed },
             action: TriggerAction.Void(),
           });
+          const newest = compressed.reduce(
+            (max, o) => (o.timestamp > max ? o.timestamp : max),
+            since ?? "",
+          );
+          await kv.update(KV.sessions, data.sessionId, [
+            { type: "set", path: "graphExtractedAt", value: newest },
+          ]);
         }
       } catch (err) {
         logger.warn("graph-extract trigger failed", {

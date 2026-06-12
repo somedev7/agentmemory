@@ -12,6 +12,8 @@ export interface Session {
   summary?: string;
   commitShas?: string[];
   agentId?: string;
+  /** Timestamp of the newest observation already sent to mem::graph-extract. */
+  graphExtractedAt?: string;
 }
 
 export interface CommitLink {
