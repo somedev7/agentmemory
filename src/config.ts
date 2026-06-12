@@ -59,6 +59,18 @@ function detectProvider(env: Record<string, string>): ProviderConfig {
     ? { compressModel: env["AGENTMEMORY_COMPRESS_MODEL"] }
     : {};
 
+  // Fork-only explicit override: "gemini-cli" routes ALL LLM work through
+  // the locally installed Gemini agent CLI (billed to the user's Google
+  // subscription) while any API keys in the env keep serving embeddings.
+  // Wins over key-based detection below by design.
+  if (env["AGENTMEMORY_PROVIDER"] === "gemini-cli") {
+    return {
+      provider: "gemini-cli",
+      model: env["AGENTMEMORY_GEMINI_CLI_BIN"] || "agy",
+      maxTokens,
+    };
+  }
+
   // OpenAI-compatible: supports OpenAI, DeepSeek, SiliconFlow, Azure, vLLM, LM Studio
   if (hasRealValue(env["OPENAI_API_KEY"]) && env["OPENAI_API_KEY_FOR_LLM"] !== "false") {
     return {

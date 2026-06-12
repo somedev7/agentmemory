@@ -63,6 +63,10 @@ export interface CompressedObservation {
   imageDescription?: string;
   modality?: "text" | "image" | "mixed";
   agentId?: string;
+  /** True while the record only has the heuristic zero-LLM compression. */
+  synthetic?: boolean;
+  /** Set by mem::batch-enrich when the LLM upgrade replaced the synthetic fields. */
+  enrichedAt?: string;
 }
 
 export type ObservationType =
@@ -151,7 +155,7 @@ export interface ProviderConfig {
   baseURL?: string;
 }
 
-export type ProviderType = "agent-sdk" | "anthropic" | "gemini" | "openrouter" | "minimax" | "openai" | "noop";
+export type ProviderType = "agent-sdk" | "anthropic" | "gemini" | "gemini-cli" | "openrouter" | "minimax" | "openai" | "noop";
 
 export interface MemoryProvider {
   name: string;

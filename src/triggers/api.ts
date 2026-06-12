@@ -6,6 +6,7 @@ import { StateKV } from "../state/kv.js";
 import { getLatestHealth } from "../health/monitor.js";
 import type { MetricsStore } from "../eval/metrics-store.js";
 import type { ResilientProvider } from "../providers/resilient.js";
+import { readQuotaLedger, dailyCap } from "../providers/gemini-cli.js";
 import { VERSION } from "../version.js";
 import { timingSafeCompare } from "../auth.js";
 import { isSlotsEnabled, isReflectEnabled } from "../functions/slots.js";
@@ -673,6 +674,63 @@ export function registerApiTriggers(
     config: {
       api_path: "/agentmemory/summarize",
       http_method: "POST",
+      middleware_function_ids: ["middleware::api-auth"],
+    },
+  });
+
+  sdk.registerFunction("api::batch-enrich",
+    async (req: ApiRequest<{ limit?: number; sessionId?: string }>): Promise<Response> => {
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const limit =
+        typeof body.limit === "number" && body.limit > 0 ? body.limit : undefined;
+      const sessionId = asNonEmptyString(body.sessionId) ?? undefined;
+      const result = await sdk.trigger({
+        function_id: "mem::batch-enrich",
+        payload: { limit, sessionId },
+      });
+      return { status_code: 200, body: result };
+    },
+  );
+  sdk.registerTrigger({
+    type: "http",
+    function_id: "api::batch-enrich",
+    config: {
+      api_path: "/agentmemory/batch-enrich",
+      http_method: "POST",
+      middleware_function_ids: ["middleware::api-auth"],
+    },
+  });
+
+  sdk.registerFunction("api::gemini-cli-quota", async (): Promise<Response> => {
+    const ledger = readQuotaLedger();
+    const today = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const key = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const day = ledger.days[key] ?? {
+      calls: 0,
+      ok: 0,
+      failed: 0,
+      quotaHits: 0,
+      inChars: 0,
+      outChars: 0,
+    };
+    const cap = dailyCap();
+    return {
+      status_code: 200,
+      body: {
+        today: { date: key, ...day, cap, remaining: Math.max(0, cap - day.calls) },
+        lastCallAt: ledger.lastCallAt,
+        lastError: ledger.lastError,
+        days: ledger.days,
+      },
+    };
+  });
+  sdk.registerTrigger({
+    type: "http",
+    function_id: "api::gemini-cli-quota",
+    config: {
+      api_path: "/agentmemory/quota/gemini-cli",
+      http_method: "GET",
       middleware_function_ids: ["middleware::api-auth"],
     },
   });

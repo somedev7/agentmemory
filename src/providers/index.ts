@@ -5,6 +5,7 @@ import type {
 } from "../types.js";
 import { AgentSDKProvider } from "./agent-sdk.js";
 import { AnthropicProvider } from "./anthropic.js";
+import { GeminiCliProvider } from "./gemini-cli.js";
 import { MinimaxProvider } from "./minimax.js";
 import { NoopProvider } from "./noop.js";
 import { OpenAIProvider } from "./openai.js";
@@ -149,6 +150,8 @@ function createBaseProvider(config: ProviderConfig): MemoryProvider {
         config.compressModel,
       );
     }
+    case "gemini-cli":
+      return new GeminiCliProvider();
     case "noop":
       return new NoopProvider();
     case "agent-sdk":

@@ -41,6 +41,7 @@ import {
 } from "./functions/search.js";
 import { registerContextFunction } from "./functions/context.js";
 import { registerSummarizeFunction } from "./functions/summarize.js";
+import { registerBatchEnrichFunction } from "./functions/batch-enrich.js";
 import { registerMigrateFunction } from "./functions/migrate.js";
 import { registerFileIndexFunction } from "./functions/file-index.js";
 import { registerConsolidateFunction } from "./functions/consolidate.js";
@@ -244,6 +245,7 @@ async function main() {
   registerSearchFunction(sdk, kv);
   registerContextFunction(sdk, kv, config.tokenBudget);
   registerSummarizeFunction(sdk, kv, provider, metricsStore);
+  registerBatchEnrichFunction(sdk, kv, provider);
   registerMigrateFunction(sdk, kv);
   registerFileIndexFunction(sdk, kv);
   registerConsolidateFunction(sdk, kv, provider);
@@ -518,7 +520,7 @@ async function main() {
     `Ready. ${embeddingProvider ? "Triple-stream (BM25+Vector+Graph)" : "BM25+Graph"} search active.`,
   );
   bootLog(
-    `REST API: 128 endpoints at http://localhost:${config.restPort}/agentmemory/*`,
+    `REST API: 130 endpoints at http://localhost:${config.restPort}/agentmemory/*`,
   );
   bootLog(
     `MCP surface (opt-in via \`npx @agentmemory/mcp\`): ${getAllTools().length} tools · 6 resources · 3 prompts`,
@@ -587,6 +589,26 @@ async function main() {
     }, consolidationIntervalMs);
     consolidationTimer.unref();
     bootLog(`Auto-consolidation: enabled (every ${consolidationIntervalMs / 60000}m)`);
+  }
+
+  // Deferred batch enrichment (fork-only): periodically upgrade the
+  // synthetic zero-LLM compressions in one batched provider call.
+  // Pairs with AGENTMEMORY_AUTO_COMPRESS=false and the gemini-cli
+  // subscription provider, but works with any configured provider.
+  if (getEnvVar("AGENTMEMORY_BATCH_ENRICH") === "true") {
+    const batchEnrichIntervalMs = parseInt(
+      getEnvVar("AGENTMEMORY_BATCH_ENRICH_INTERVAL_MS") || "1200000",
+      10,
+    );
+    const batchEnrichTimer = setInterval(async () => {
+      try {
+        await sdk.trigger({ function_id: "mem::batch-enrich", payload: {} });
+      } catch {}
+    }, batchEnrichIntervalMs);
+    batchEnrichTimer.unref();
+    bootLog(
+      `Batch enrich: enabled (every ${Math.round(batchEnrichIntervalMs / 60000)}m, provider: ${config.provider.provider})`,
+    );
   }
 
   const shutdown = async () => {

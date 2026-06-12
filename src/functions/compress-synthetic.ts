@@ -3,6 +3,7 @@ import type {
   CompressedObservation,
   ObservationType,
 } from "../types.js";
+import { getEnvVar } from "../config.js";
 
 // Zero-LLM compression path. Converts a RawObservation into a
 // CompressedObservation using only heuristics — no Claude call, no token
@@ -85,6 +86,16 @@ export function buildSyntheticCompression(
     (s) => s.length > 0,
   );
 
+  // mem::batch-enrich later rewrites synthetic records with an LLM pass;
+  // a longer narrative gives it more source material. Default stays 400
+  // to keep the BM25 index lean for users who never enable enrichment.
+  const narrativeMaxRaw = getEnvVar("AGENTMEMORY_SYNTHETIC_NARRATIVE_MAX");
+  const narrativeMaxParsed = narrativeMaxRaw ? parseInt(narrativeMaxRaw, 10) : NaN;
+  const narrativeMax =
+    Number.isFinite(narrativeMaxParsed) && narrativeMaxParsed >= 100
+      ? narrativeMaxParsed
+      : 400;
+
   const result: CompressedObservation = {
     id: raw.id,
     sessionId: raw.sessionId,
@@ -93,11 +104,12 @@ export function buildSyntheticCompression(
     title: truncate(toolName || "observation", 80),
     subtitle: inputStr ? truncate(inputStr, 120) : undefined,
     facts: [],
-    narrative: truncate(narrativeParts.join(" | "), 400),
+    narrative: truncate(narrativeParts.join(" | "), narrativeMax),
     concepts: [],
     files: extractFiles(raw.toolInput),
     importance: 5,
     confidence: 0.3,
+    synthetic: true,
   };
   if (raw.modality) result.modality = raw.modality;
   if (raw.imageData) result.imageData = raw.imageData;
