@@ -18,7 +18,7 @@ import { logger } from "../logger.js";
 // LLM call per observation (AGENTMEMORY_AUTO_COMPRESS, ~thousands of
 // calls/day), a periodic tick gathers the synthetic backlog and upgrades
 // it in ONE provider call, sized for a subscription-billed CLI provider
-// (see providers/gemini-cli.ts, providers/codex-cli.ts).
+// (see providers/codex-cli.ts).
 
 const BATCH_ENRICH_SYSTEM = `You are a memory-compression assistant for a coding-agent observation log.
 Each <input> element below is one observation from an AI coding agent's session: a tool call, command, file access, or conversation snippet. The current text is a raw mechanical capture.

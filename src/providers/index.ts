@@ -6,7 +6,6 @@ import type {
 import { AgentSDKProvider } from "./agent-sdk.js";
 import { AnthropicProvider } from "./anthropic.js";
 import { CodexCliProvider } from "./codex-cli.js";
-import { GeminiCliProvider } from "./gemini-cli.js";
 import { MinimaxProvider } from "./minimax.js";
 import { NoopProvider } from "./noop.js";
 import { OpenAIProvider } from "./openai.js";
@@ -50,8 +49,6 @@ function defaultModelFor(providerType: ProviderConfig["provider"]): string {
       return getEnvVar("MINIMAX_MODEL") || "MiniMax-M2.7";
     // The CLI providers ignore config.model (they read their own env at
     // construction); these entries keep the #778 invariant for bookkeeping.
-    case "gemini-cli":
-      return getEnvVar("AGENTMEMORY_GEMINI_CLI_BIN") || "agy";
     case "codex-cli":
       return getEnvVar("AGENTMEMORY_CODEX_CLI_MODEL") || "gpt-5.4-mini";
     case "agent-sdk":
@@ -157,8 +154,6 @@ function createBaseProvider(config: ProviderConfig): MemoryProvider {
         config.compressModel,
       );
     }
-    case "gemini-cli":
-      return new GeminiCliProvider();
     case "codex-cli":
       return new CodexCliProvider();
     case "noop":

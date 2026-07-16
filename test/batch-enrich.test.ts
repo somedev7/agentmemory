@@ -108,7 +108,7 @@ function makeProvider(respond: (user: string) => string): MemoryProvider & {
 } {
   const calls: string[] = [];
   return {
-    name: "gemini-cli",
+    name: "codex-cli",
     calls,
     compress: async (_system: string, user: string) => {
       calls.push(user);
@@ -231,9 +231,9 @@ describe("mem::batch-enrich", () => {
 
   it("returns the provider error without touching records", async () => {
     const provider: MemoryProvider = {
-      name: "gemini-cli",
+      name: "codex-cli",
       compress: async () => {
-        throw new Error("gemini_cli_daily_cap_reached: 250/250");
+        throw new Error("codex_cli_daily_cap_reached: 250/250");
       },
       summarize: async () => "",
     };
@@ -310,10 +310,10 @@ describe("mem::batch-enrich chunking", () => {
     try {
       let call = 0;
       const provider: MemoryProvider = {
-        name: "gemini-cli",
+        name: "codex-cli",
         compress: async (_s: string, user: string) => {
           call += 1;
-          if (call > 1) throw new Error("gemini_cli_daily_cap_reached: 250/250");
+          if (call > 1) throw new Error("codex_cli_daily_cap_reached: 250/250");
           const ids = [...user.matchAll(/<input id="([^"]+)"/g)].map((m) => m[1]);
           return enrichmentXml(ids);
         },

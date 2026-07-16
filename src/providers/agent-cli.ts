@@ -5,7 +5,7 @@ import { getEnvVar } from "../config.js";
 import { logger } from "../logger.js";
 
 // Fork-only shared machinery for subscription-billed agent-CLI providers
-// (gemini-cli, codex-cli). Both shell out to a locally installed agent CLI
+// (currently codex-cli). Each shells out to a locally installed agent CLI
 // and bill the user's existing subscription, which exposes no usage API —
 // so each provider keeps a local per-day ledger and refuses calls past a
 // daily cap. Calls are strictly serialized by the providers themselves:
@@ -44,7 +44,7 @@ export function emptyDay(): QuotaDay {
 }
 
 export interface CliQuotaOptions {
-  /** Provider name used in log lines and the cap error prefix, e.g. "gemini-cli". */
+  /** Provider name used in log lines and the cap error prefix, e.g. "codex-cli". */
   label: string;
   fileEnvVar: string;
   defaultFileName: string;

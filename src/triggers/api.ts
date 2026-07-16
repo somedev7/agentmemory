@@ -6,11 +6,7 @@ import { StateKV } from "../state/kv.js";
 import { getLatestHealth } from "../health/monitor.js";
 import type { MetricsStore } from "../eval/metrics-store.js";
 import type { ResilientProvider } from "../providers/resilient.js";
-import { readQuotaLedger, dailyCap } from "../providers/gemini-cli.js";
-import {
-  readQuotaLedger as readCodexQuotaLedger,
-  dailyCap as codexDailyCap,
-} from "../providers/codex-cli.js";
+import { readQuotaLedger, dailyCap } from "../providers/codex-cli.js";
 import type { QuotaLedger } from "../providers/agent-cli.js";
 import { VERSION } from "../version.js";
 import { timingSafeCompare } from "../auth.js";
@@ -729,21 +725,8 @@ export function registerApiTriggers(
     };
   };
 
-  sdk.registerFunction("api::gemini-cli-quota", async (): Promise<Response> => {
-    return quotaResponse(readQuotaLedger(), dailyCap());
-  });
-  sdk.registerTrigger({
-    type: "http",
-    function_id: "api::gemini-cli-quota",
-    config: {
-      api_path: "/agentmemory/quota/gemini-cli",
-      http_method: "GET",
-      middleware_function_ids: ["middleware::api-auth"],
-    },
-  });
-
   sdk.registerFunction("api::codex-cli-quota", async (): Promise<Response> => {
-    return quotaResponse(readCodexQuotaLedger(), codexDailyCap());
+    return quotaResponse(readQuotaLedger(), dailyCap());
   });
   sdk.registerTrigger({
     type: "http",

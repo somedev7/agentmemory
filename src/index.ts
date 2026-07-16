@@ -520,7 +520,7 @@ async function main() {
     `Ready. ${embeddingProvider ? "Triple-stream (BM25+Vector+Graph)" : "BM25+Graph"} search active.`,
   );
   bootLog(
-    `REST API: 131 endpoints at http://localhost:${config.restPort}/agentmemory/*`,
+    `REST API: 130 endpoints at http://localhost:${config.restPort}/agentmemory/*`,
   );
   bootLog(
     `MCP surface (opt-in via \`npx @agentmemory/mcp\`): ${getAllTools().length} tools · 6 resources · 3 prompts`,
@@ -593,7 +593,7 @@ async function main() {
 
   // Deferred batch enrichment (fork-only): periodically upgrade the
   // synthetic zero-LLM compressions in one batched provider call.
-  // Pairs with AGENTMEMORY_AUTO_COMPRESS=false and the gemini-cli
+  // Pairs with AGENTMEMORY_AUTO_COMPRESS=false and the codex-cli
   // subscription provider, but works with any configured provider.
   if (getEnvVar("AGENTMEMORY_BATCH_ENRICH") === "true") {
     const batchEnrichIntervalMs = parseInt(

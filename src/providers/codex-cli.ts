@@ -10,12 +10,12 @@ import type { QuotaLedger } from "./agent-cli.js";
 
 // Fork-only provider (not for upstream): routes LLM work through the
 // locally installed OpenAI Codex CLI (`codex exec`) so the cost lands on
-// the user's ChatGPT subscription instead of a per-token API. Added as
-// the successor / fallback for gemini-cli: Google retires the consumer
-// Gemini CLI on 2026-06-18 and Antigravity weekly quotas are too small
+// the user's ChatGPT subscription instead of a per-token API. Replaced
+// the earlier gemini-cli provider (removed 2026-07-16): Google retired
+// the consumer Gemini CLI and Antigravity weekly quotas are too small
 // for the background workload.
 //
-// Invocation shape differs from the gemini CLIs: the instruction goes as
+// Invocation shape: the instruction goes as
 // the positional argument, the payload is piped to stdin (codex appends
 // it as a `<stdin>` block), and the final agent message is read from a
 // temp file via -o — stdout carries the noisy event log, not the answer.
@@ -27,7 +27,7 @@ import type { QuotaLedger } from "./agent-cli.js";
 // user's interactive codex sessions.
 //
 // Serialization and the per-day quota ledger (codex-cli-quota.json,
-// daily call cap) follow the same contract as gemini-cli — see
+// daily call cap) live in the shared agent-cli machinery — see
 // providers/agent-cli.ts.
 
 const quota = new CliQuota({

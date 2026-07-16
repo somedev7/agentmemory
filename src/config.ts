@@ -59,21 +59,10 @@ function detectProvider(env: Record<string, string>): ProviderConfig {
     ? { compressModel: env["AGENTMEMORY_COMPRESS_MODEL"] }
     : {};
 
-  // Fork-only explicit override: "gemini-cli" routes ALL LLM work through
-  // the locally installed Gemini agent CLI (billed to the user's Google
-  // subscription) while any API keys in the env keep serving embeddings.
-  // Wins over key-based detection below by design.
-  if (env["AGENTMEMORY_PROVIDER"] === "gemini-cli") {
-    return {
-      provider: "gemini-cli",
-      model: env["AGENTMEMORY_GEMINI_CLI_BIN"] || "agy",
-      maxTokens,
-    };
-  }
-
   // Fork-only explicit override: "codex-cli" routes ALL LLM work through
   // the locally installed OpenAI Codex CLI (billed to the user's ChatGPT
-  // subscription). Same precedence as gemini-cli above.
+  // subscription) while any API keys in the env keep serving embeddings.
+  // Wins over key-based detection below by design.
   if (env["AGENTMEMORY_PROVIDER"] === "codex-cli") {
     return {
       provider: "codex-cli",
@@ -453,7 +442,6 @@ export function getStandalonePersistPath(): string {
 const VALID_PROVIDERS = new Set([
   "anthropic",
   "gemini",
-  "gemini-cli",
   "codex-cli",
   "openrouter",
   "agent-sdk",
