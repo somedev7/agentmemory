@@ -43,6 +43,7 @@ async function main() {
 	} catch {
 		return;
 	}
+	if (!data || typeof data !== "object") return;
 	if (isSdkChildContext(data)) return;
 	const sessionId = data.session_id || data.sessionId || "unknown";
 	const project = resolveProject(data.cwd);
@@ -71,7 +72,7 @@ async function main() {
 		}
 	} catch {}
 }
-main();
+main().catch(() => process.exit(0));
 //#endregion
 export {};
 

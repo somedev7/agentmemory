@@ -6,6 +6,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.9.29] — 2026-08-02
+
+Patch release: the `.env` file now actually applies everywhere, imports become searchable, consolidation runs on session stop, twelve MCP-only agents get activated on connect, and every capture surface finally agrees on what "project" means. No breaking changes; read the upgrade notes below for four behavior changes you will notice.
+
+### Upgrade notes
+
+- `~/.agentmemory/.env` values that were silently ignored by most modules now take effect on boot. If that file has stale entries from past experiments, review it before upgrading.
+- `agentmemory connect <agent>` now writes a short memory-usage guideline into the agent's native rules file (Cursor, Cline, Continue, Zed, Warp, Kiro, Gemini CLI, Qwen, OpenCode, Droid, Copilot CLI, Antigravity) so MCP-only agents actually call the memory tools. Pass `--no-guidelines` to opt out.
+- Installs with an LLM key now run consolidation and crystallization on session stop (previously they never fired), debounced to once per 5 minutes (`AGENTMEMORY_CONSOLIDATION_COOLDOWN_MS`).
+- Local embeddings re-download once after the `@huggingface/transformers` migration (different model cache directory). Model IDs are unchanged.
+
+### Added
+
+- `--data-dir` flag and `AGENTMEMORY_DATA_DIR` so iii-engine state lives outside repositories, with gated legacy `./data` adoption and Docker-volume preservation (#314)
+- Native hooks adapter for Droid via `~/.factory/hooks.json`, reusing the bundled hook scripts (#1130)
+- Native hooks adapter for Antigravity CLI (agy) via a stdin bridge that normalizes agy's hook payloads onto the bundled hook scripts, with an explicit PreToolUse allow decision (#1146, thanks @berthojoris)
+- `mem::graph::import-graphify` and `POST /agentmemory/graph/import-graphify`: merge graphify's `graph.json` into the knowledge graph with confidence tags carried over as edge weights (#1136)
+- Connector guideline activation for twelve hook-less agents, with every rules-file path verified against the agent's official documentation (#1136)
+- Honest `memory_forget` reporting plus a real lesson delete path (`mem::lesson-delete`, `DELETE`-style REST route, MCP tool) (#1132)
+- `AGENTMEMORY_PROJECT_NAME` override in the OpenCode plugin (#1125)
+- Provider fetches retry 429/503 honoring `Retry-After` under a total-elapsed budget capped below the iii invocation timeout (#1136)
+
+### Fixed
+
+- Boot hydrates `~/.agentmemory/.env` into `process.env`, closing the class of "env var in .env is ignored" bugs (#1136)
+- Imported and replayed observations are indexed into BM25 and the vector index, so imports are searchable (#1072, via #1136)
+- Snapshot timer actually runs, non-positive intervals clamp to the default, and snapshot creation is serialized across timer, REST, and MCP (#1006, via #1136)
+- CJK-aware dedup with NFC normalization and an exact-match fallback for short memories (#1021, via #1136)
+- OpenRouter embeddings no longer hardcode 1536 dimensions (#1002, via #1136)
+- Viewer decodes multibyte request bodies correctly (#930, via #1136)
+- Session-stop consolidation is debounced and no longer double-fires from the client hook; eviction recovery is bounded to one consolidation pass (#1087, #1131 class, via #1136)
+- `/agentmemory/sessions` no longer deadlocks on large session counts (#1100, via #1136)
+- Filesystem watcher validates roots before `fs.watch`, fixing Node 24/26 on Linux (#1136)
+- `GET /agentmemory/export` and `/agentmemory/mesh/export` refuse an over-frame response instead of shipping it: a payload past the engine 16 MiB transport frame used to drop the worker and 404 every endpoint for ~1s. They now fail that one request (413 for mesh, an `oversized` error for export) with a hint to narrow the range, keeping the daemon up (#1142, #890). Full pagination of the non-session collections is a follow-up.
+- Claude bridge writes `MEMORY.md` under the `memory/` subdirectory Claude Code actually reads (#1134)
+- Hook project-resolution tests no longer depend on the checkout directory name (#1137, #1138)
+- Project-scope parity: the OpenCode plugin, Hermes plugin, Pi extension, and JSONL replay now resolve `project` the same way the hooks do (env override, git toplevel basename, cwd basename) instead of sending raw filesystem paths, so the same repository shares one memory bucket across agents (#903, #1135); the filesystem watcher accepts `AGENTMEMORY_PROJECT_NAME` with the old `AGENTMEMORY_PROJECT` kept as a deprecated alias; replay handles Windows-recorded paths
+- OpenCode file enrichment matches the agent's lowercase tool names, which the previous capitalized set never did
+- Viewer surfaces health status from non-2xx health responses (#1046)
+- Documented REST endpoint count matches the registered routes again (130)
+
+### Changed
+
+- Local embeddings migrate from `@xenova/transformers` to `@huggingface/transformers` v4 with Node 22+ support; CI now tests Node 20, 22, 24, and 26 (#479, #1096)
+
+## [0.9.28] — 2026-07-19
+
+Patch release: hardens the hook runner against malformed payloads and closes a cross-agent context leak. No breaking changes; drop-in upgrade.
+
+### Security
+
+- **Cross-agent memory leak via `POST /agentmemory/context`** ([#1057](https://github.com/rohitg00/agentmemory/issues/1057)). `mem::context` and its `api::context` handler filtered candidate sessions by `project` only, so under `AGENTMEMORY_AGENT_SCOPE=isolated` one profile could receive another profile's session observations and summaries whenever they shared a project path — while `/search` and `/smart-search` already filtered correctly. `mem::context` now applies the same agent-scope filter as `mem::search` ([#817](https://github.com/rohitg00/agentmemory/issues/817)): explicit `agentId` pins, wildcard `agentId: "*"` bypasses, isolated mode falls back to env `AGENT_ID`, and the call fails closed if isolated mode is on with no resolvable agent id. All three callers (`api::context`, `api::session::start`, `event::session::started`) now forward `agentId`.
+
+### Fixed
+
+- **Hooks crashed with exit code 1 on a `null` JSON payload** ([#1047](https://github.com/rohitg00/agentmemory/issues/1047)). `JSON.parse("null")` returns `null` without throwing, so the existing parse guard passed it through and the first `data.session_id` access threw a `TypeError`. Because each hook called `main()` bare, that became an unhandled rejection and the host CLI (Codex CLI, Claude Code) reported "hook exited with code 1" on every affected tool call. All 13 hook entrypoints now guard `if (!data || typeof data !== "object")` before dereferencing, and wrap the top-level `main()` in `.catch()` so any hook error fails closed (silent exit 0) instead of surfacing to the host tool loop.
+
+### Docs
+
+- Refreshed stale stats in README and AGENTS.md (AGENTS test count 950+ → 1,428+, iii-function count 50+ → 260+) plus the README source-file, LOC, function, and KV-scope counts, and regenerated the website meta snapshot for 0.9.28. Removed the rate-limited star-history chart from the README and all 11 translations.
+
 ## [0.9.27] — 2026-06-07
 
 Wave release closing several breaking regressions reported against v0.9.26, plus an agent-scope isolation security fix, an iii version-pin audit fix, and a benchmark scorecard correction. No breaking changes; drop-in upgrade.
@@ -50,6 +111,8 @@ Wave release closing several breaking regressions reported against v0.9.26, plus
 - `/agentmemory:forget` skill still calls `memory_governance_delete` which only touches `KV.memories` and never observations ([#833](https://github.com/rohitg00/agentmemory/issues/833)). Skill rewrite + new `memory_forget` MCP tool tracked separately.
 - `crypto.randomUUID()` global-only on Node <19 ([#715](https://github.com/rohitg00/agentmemory/issues/715)). Drop-in import fix tracked.
 
+[0.9.29]: https://github.com/rohitg00/agentmemory/compare/v0.9.28...v0.9.29
+[0.9.28]: https://github.com/rohitg00/agentmemory/compare/v0.9.27...v0.9.28
 [0.9.27]: https://github.com/rohitg00/agentmemory/compare/v0.9.26...v0.9.27
 
 ## [0.9.26] — 2026-06-03

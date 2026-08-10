@@ -30,16 +30,6 @@
 </p>
 
 <p align="center">
-  <a href="https://www.star-history.com/?repos=rohitg00%2Fagentmemory&type=date&legend=top-left">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=rohitg00/agentmemory&type=date&theme=dark&legend=top-left" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=rohitg00/agentmemory&type=date&legend=top-left" />
-      <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=rohitg00/agentmemory&type=date&legend=top-left" />
-    </picture>
-  </a>
-</p>
-
-<p align="center">
   <a href="https://gist.github.com/rohitg00/2067ab416f7bbe447c1977edaaa681e2"><img src="https://img.shields.io/badge/Viral%20GitHub%20Gist-1200%20stars%20%2F%20172%20forks-FF6B35?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a1a" alt="Design doc: 1200 stars / 172 forks on the gist" /></a>
 </p>
 
@@ -49,7 +39,6 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@agentmemory/agentmemory"><img src="https://img.shields.io/npm/v/@agentmemory/agentmemory?color=CB3837&label=npm&style=for-the-badge&logo=npm" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/@agentmemory/agentmemory"><img src="https://img.shields.io/npm/dm/@agentmemory/agentmemory?color=CB3837&label=downloads&style=for-the-badge&logo=npm" alt="npm downloads" /></a>
   <a href="https://github.com/rohitg00/agentmemory/actions"><img src="https://img.shields.io/github/actions/workflow/status/rohitg00/agentmemory/ci.yml?label=tests&style=for-the-badge&logo=github" alt="CI" /></a>
   <a href="https://github.com/rohitg00/agentmemory/blob/main/LICENSE"><img src="https://img.shields.io/github/license/rohitg00/agentmemory?color=blue&style=for-the-badge" alt="License" /></a>
   <a href="https://github.com/rohitg00/agentmemory/stargazers"><img src="https://img.shields.io/github/stars/rohitg00/agentmemory?style=for-the-badge&color=yellow&logo=github" alt="Stars" /></a>
@@ -422,7 +411,7 @@ npx @agentmemory/agentmemory import-jsonl ~/.claude/projects/-my-project/abc123.
 npx @agentmemory/agentmemory upgrade
 ```
 
-警告:此命令会变更当前工作空间/运行时。它可能更新 JavaScript 依赖,可能运行 `cargo install iii-engine --force`,也可能拉取 Docker 镜像。
+警告:此命令会变更当前工作空间/运行时。它可能更新 JavaScript 依赖,并拉取固定版本的 Docker 镜像 `iiidev/iii:0.11.2`。它绝不会安装未固定版本或更新的 iii 引擎。
 
 实现细节见 `src/cli.ts`(参考 `src/cli.ts:544-595` 附近的 `runUpgrade`)。
 
@@ -434,7 +423,7 @@ Install agentmemory: run `npx @agentmemory/agentmemory` in a separate terminal t
 
 #### Claude Code 不安装插件(MCP-standalone 路径)
 
-如果你直接通过 `~/.claude.json` 连接 agentmemory 的 MCP 服务器而不使用 `/plugin install`,Claude Code 永远不会解析 `${CLAUDE_PLUGIN_ROOT}`,你必须把 hook 脚本指向 `~/.claude/settings.json` 中的绝对路径。这些路径通常会嵌入 agentmemory 版本号(例如 `~/.codex/plugins/cache/agentmemory/agentmemory/0.9.21/scripts/…`),因此下次升级会静默破坏所有 hooks([#508](https://github.com/rohitg00/agentmemory/issues/508))。
+如果你直接通过 `~/.claude.json` 连接 agentmemory 的 MCP 服务器而不使用 `/plugin install`,Claude Code 永远不会解析 `${CLAUDE_PLUGIN_ROOT}`,你必须把 hook 脚本指向 `~/.claude/settings.json` 中的绝对路径。这些路径通常会嵌入 agentmemory 版本号(例如 `~/.codex/plugins/cache/agentmemory/agentmemory/0.9.21/scripts/…`),因此下次升级会静默破坏所有 hooks。
 
 变通方法:
 
@@ -563,7 +552,7 @@ Verify with `curl http://localhost:3111/agentmemory/health`. Open http://localho
 | **Aider** | n/a | 直接调用 REST API:`curl -X POST http://localhost:3111/agentmemory/smart-search -d '{"query": "auth"}'`。 |
 | **任何代理 (32+)** | n/a | `npx skillkit install agentmemory` 自动检测宿主并合并。 |
 
-**沙盒化的 MCP 客户端**(Flatpak / Snap / 受限容器)无法访问宿主的 `localhost`:还要在 `env` 块中设置 `"AGENTMEMORY_FORCE_PROXY": "1"`,并把 `AGENTMEMORY_URL` 指向沙盒确实能到达的路由(例如你的 LAN IP)。诊断步骤见 [#234](https://github.com/rohitg00/agentmemory/issues/234)。
+**沙盒化的 MCP 客户端**(Flatpak / Snap / 受限容器)无法访问宿主的 `localhost`:还要在 `env` 块中设置 `"AGENTMEMORY_FORCE_PROXY": "1"`,并把 `AGENTMEMORY_URL` 指向沙盒确实能到达的路由(例如你的 LAN IP)。
 
 ### 程序化访问(Python / Rust / Node)
 
@@ -657,7 +646,7 @@ npx -y @agentmemory/mcp
 | 端口冲突 | `netstat -ano \| findstr :3111` 查看占用,然后 kill 或用 `--port <N>` |
 | Docker 已安装但仍跳过回退 | 确保 Docker Desktop 确实在运行(系统托盘图标) |
 
-> 注意:没有 `cargo install iii-engine` — `iii` 未发布到 crates.io。唯一受支持的安装方式是上面的预构建二进制、上游 `sh` 安装脚本(仅 macOS/Linux)和 Docker 镜像。
+> 注意:iii **引擎** 是预构建的二进制文件,而非 cargo crate — 不要尝试用 `cargo install` 安装它。(iii 的 **SDK** 确实已发布到 crates.io、npm 和 PyPI,但 agentmemory 并不需要它们。)受支持的引擎安装方式均固定为 v0.11.2:上面的预构建 v0.11.2 二进制、**带版本固定** 的上游 `sh` 安装脚本 `curl -fsSL https://install.iii.dev/iii/main/install.sh | VERSION=0.11.2 sh`(macOS/Linux),以及 Docker 镜像 `iiidev/iii:0.11.2`。直接运行 `install.sh | sh` 会安装 **最新** 引擎,而 agentmemory 不支持该版本 — 请务必传入 `VERSION=0.11.2`。最简单的方式:直接运行 `npx @agentmemory/agentmemory`,它会为你把固定版本的引擎获取到 `~/.agentmemory/bin`。
 
 ---
 
@@ -821,7 +810,7 @@ BM25 开箱即用支持希腊语、西里尔语、希伯来语、阿拉伯语和
 agentmemory 自动检测你的提供者。为获得最佳效果,安装本地嵌入(免费):
 
 ```bash
-npm install @xenova/transformers
+npm install @huggingface/transformers
 ```
 
 | 提供者 | 模型 | 成本 | 备注 |
@@ -1106,7 +1095,7 @@ agentmemory 从你的环境自动检测。默认情况下,除非你配置提供�
 | MiniMax | `MINIMAX_API_KEY` | Anthropic 兼容 |
 | Gemini | `GEMINI_API_KEY` | 同时启用嵌入 |
 | OpenRouter | `OPENROUTER_API_KEY` | 任意模型 |
-| Claude 订阅回退 | `AGENTMEMORY_ALLOW_AGENT_SDK=true` | 仅按需启用。会派生 `@anthropic-ai/claude-agent-sdk` 会话 — 曾导致无限 Stop-hook 递归(#149 后续)故不再默认。 |
+| Claude 订阅回退 | `AGENTMEMORY_ALLOW_AGENT_SDK=true` | 仅按需启用。会派生 `@anthropic-ai/claude-agent-sdk` 会话 — 曾导致无限 Stop-hook 递归故不再默认。 |
 
 ### 成本感知的模型选择
 
@@ -1177,7 +1166,7 @@ netstat -ano | findstr ":3111 :3112 :3113 :49134"
 taskkill /F /PID <pid>
 ```
 
-`agentmemory stop` 在优雅关闭时干净地回收 worker 和 engine pidfile(#640、#474)。上面的手动清理仅针对崩溃后两个 pidfile 都未留下的情况。
+`agentmemory stop` 在优雅关闭时干净地回收 worker 和 engine pidfile。上面的手动清理仅针对崩溃后两个 pidfile 都未留下的情况。
 
 ### 配置文件
 
@@ -1242,7 +1231,7 @@ CONSOLIDATION_ENABLED=true
 # OPENAI_API_KEY_FOR_LLM=false             # Optional: set to false to skip OpenAI auto-detection
 #                                          # for LLM (useful if you only want OpenAI for embeddings)
 # Opt-in Claude-subscription fallback (spawns @anthropic-ai/claude-agent-sdk);
-# leave OFF unless you understand the Stop-hook recursion risk (#149 follow-up):
+# leave OFF unless you understand the Stop-hook recursion risk:
 # AGENTMEMORY_ALLOW_AGENT_SDK=true
 
 # Embedding provider (auto-detected, or override)
@@ -1276,7 +1265,7 @@ CONSOLIDATION_ENABLED=true
 # III_REST_PORT=3111
 
 # Features
-# AGENTMEMORY_AUTO_COMPRESS=false  # OFF by default (#138). When on,
+# AGENTMEMORY_AUTO_COMPRESS=false  # OFF by default. When on,
                                    # every PostToolUse hook calls your
                                    # LLM provider to compress the
                                    # observation — expect significant
@@ -1298,7 +1287,7 @@ CONSOLIDATION_ENABLED=true
                                    # session_patterns, records touched
                                    # files in project_context. Fire-
                                    # and-forget; does not block.
-# AGENTMEMORY_INJECT_CONTEXT=false # OFF by default (#143). When on:
+# AGENTMEMORY_INJECT_CONTEXT=false # OFF by default. When on:
                                    # - SessionStart may inject ~1-2K
                                    #   chars of project context into
                                    #   the first turn of each session

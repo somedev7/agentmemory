@@ -34,6 +34,7 @@ async function main() {
 	if (input.trim()) try {
 		data = JSON.parse(input);
 	} catch {}
+	if (!data || typeof data !== "object") data = {};
 	if (isSdkChildContext(data)) return;
 	const cwd = data.cwd || process.env["AGENTMEMORY_CWD"] || process.cwd();
 	const sessionId = data.session_id || process.env["AGENTMEMORY_SESSION_ID"] || void 0;
@@ -94,7 +95,7 @@ async function main() {
 		});
 	} catch {}
 }
-main();
+main().catch(() => process.exit(0));
 //#endregion
 export {};
 

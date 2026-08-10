@@ -28,6 +28,7 @@ async function main() {
     return;
   }
 
+  if (!data || typeof data !== "object") return;
   if (isSdkChildContext(data)) return;
 
   const sessionId = ((data.session_id || data.sessionId) as string) || "unknown";
@@ -38,22 +39,6 @@ async function main() {
     body: JSON.stringify({ sessionId }),
     signal: AbortSignal.timeout(30000),
   }).catch(() => {});
-
-  if (process.env["CONSOLIDATION_ENABLED"] === "true") {
-    fetch(`${REST_URL}/agentmemory/crystals/auto`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ olderThanDays: 0 }),
-      signal: AbortSignal.timeout(60000),
-    }).catch(() => {});
-
-    fetch(`${REST_URL}/agentmemory/consolidate-pipeline`, {
-      method: "POST",
-      headers: authHeaders(),
-      body: JSON.stringify({ tier: "all", force: true }),
-      signal: AbortSignal.timeout(120000),
-    }).catch(() => {});
-  }
 
   if (process.env["CLAUDE_MEMORY_BRIDGE"] === "true") {
     fetch(`${REST_URL}/agentmemory/claude-bridge/sync`, {
@@ -66,4 +51,4 @@ async function main() {
   setTimeout(() => process.exit(0), 1500).unref();
 }
 
-main();
+main().catch(() => process.exit(0));

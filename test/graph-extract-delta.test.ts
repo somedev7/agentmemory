@@ -10,6 +10,9 @@ vi.mock("../src/functions/slots.js", () => ({
 
 vi.mock("../src/config.js", () => ({
   isGraphExtractionEnabled: () => true,
+  isConsolidationEnabled: () => false,
+  getConsolidationCooldownMs: () => 0,
+  getAgentId: () => undefined,
 }));
 
 vi.mock("../src/state/schema.js", () => ({

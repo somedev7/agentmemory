@@ -30,16 +30,6 @@
 </p>
 
 <p align="center">
-  <a href="https://www.star-history.com/?repos=rohitg00%2Fagentmemory&type=date&legend=top-left">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=rohitg00/agentmemory&type=date&theme=dark&legend=top-left" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=rohitg00/agentmemory&type=date&legend=top-left" />
-      <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=rohitg00/agentmemory&type=date&legend=top-left" />
-    </picture>
-  </a>
-</p>
-
-<p align="center">
   <a href="https://gist.github.com/rohitg00/2067ab416f7bbe447c1977edaaa681e2"><img src="https://img.shields.io/badge/Viral%20GitHub%20Gist-1200%20stars%20%2F%20172%20forks-FF6B35?style=for-the-badge&logo=github&logoColor=white&labelColor=1a1a1a" alt="Design doc: 1200 stars / 172 forks on the gist" /></a>
 </p>
 
@@ -49,7 +39,6 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@agentmemory/agentmemory"><img src="https://img.shields.io/npm/v/@agentmemory/agentmemory?color=CB3837&label=npm&style=for-the-badge&logo=npm" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/@agentmemory/agentmemory"><img src="https://img.shields.io/npm/dm/@agentmemory/agentmemory?color=CB3837&label=downloads&style=for-the-badge&logo=npm" alt="npm downloads" /></a>
   <a href="https://github.com/rohitg00/agentmemory/actions"><img src="https://img.shields.io/github/actions/workflow/status/rohitg00/agentmemory/ci.yml?label=tests&style=for-the-badge&logo=github" alt="CI" /></a>
   <a href="https://github.com/rohitg00/agentmemory/blob/main/LICENSE"><img src="https://img.shields.io/github/license/rohitg00/agentmemory?color=blue&style=for-the-badge" alt="License" /></a>
   <a href="https://github.com/rohitg00/agentmemory/stargazers"><img src="https://img.shields.io/github/stars/rohitg00/agentmemory?style=for-the-badge&color=yellow&logo=github" alt="Stars" /></a>
@@ -422,7 +411,7 @@ npx @agentmemory/agentmemory import-jsonl ~/.claude/projects/-my-project/abc123.
 npx @agentmemory/agentmemory upgrade
 ```
 
-警告: このコマンドは現在のワークスペース/ランタイムを変更します。JavaScript 依存を更新したり、`cargo install iii-engine --force` を実行したり、Docker イメージを pull したりすることがあります。
+警告: このコマンドは現在のワークスペース/ランタイムを変更します。JavaScript 依存を更新したり、ピン留めされた Docker イメージ `iiidev/iii:0.11.2` を pull したりすることがあります。ピン留めされていない、あるいは新しい iii エンジンをインストールすることは決してありません。
 
 実装の詳細は `src/cli.ts` を参照(`src/cli.ts:544-595` 付近の `runUpgrade`)。
 
@@ -434,7 +423,7 @@ Install agentmemory: run `npx @agentmemory/agentmemory` in a separate terminal t
 
 #### プラグインをインストールしない Claude Code(MCP スタンドアロン)
 
-`/plugin install` ではなく `~/.claude.json` から直接 agentmemory の MCP サーバーを配線する場合、Claude Code は `${CLAUDE_PLUGIN_ROOT}` を解決しないため、hook スクリプトを `~/.claude/settings.json` の絶対パスに向ける必要があります。これらのパスには通常 agentmemory のバージョン(例: `~/.codex/plugins/cache/agentmemory/agentmemory/0.9.21/scripts/…`)が埋め込まれるため、次のアップグレードで全 hook が静かに壊れます([#508](https://github.com/rohitg00/agentmemory/issues/508))。
+`/plugin install` ではなく `~/.claude.json` から直接 agentmemory の MCP サーバーを配線する場合、Claude Code は `${CLAUDE_PLUGIN_ROOT}` を解決しないため、hook スクリプトを `~/.claude/settings.json` の絶対パスに向ける必要があります。これらのパスには通常 agentmemory のバージョン(例: `~/.codex/plugins/cache/agentmemory/agentmemory/0.9.21/scripts/…`)が埋め込まれるため、次のアップグレードで全 hook が静かに壊れます。
 
 回避策:
 
@@ -563,7 +552,7 @@ Verify with `curl http://localhost:3111/agentmemory/health`. Open http://localho
 | **Aider** | n/a | REST API に直接話しかける: `curl -X POST http://localhost:3111/agentmemory/smart-search -d '{"query": "auth"}'`。 |
 | **任意のエージェント(32+)** | n/a | `npx skillkit install agentmemory` がホストを自動検出してマージ。 |
 
-**サンドボックス化された MCP クライアント**(Flatpak / Snap / 制限的なコンテナ)はホストの `localhost` に到達できません: `env` ブロックに `"AGENTMEMORY_FORCE_PROXY": "1"` も設定し、`AGENTMEMORY_URL` をサンドボックスが実際に到達できる経路(例: LAN IP)に向けてください。診断手順は [#234](https://github.com/rohitg00/agentmemory/issues/234) を参照。
+**サンドボックス化された MCP クライアント**(Flatpak / Snap / 制限的なコンテナ)はホストの `localhost` に到達できません: `env` ブロックに `"AGENTMEMORY_FORCE_PROXY": "1"` も設定し、`AGENTMEMORY_URL` をサンドボックスが実際に到達できる経路(例: LAN IP)に向けてください。
 
 ### プログラマティックアクセス(Python / Rust / Node)
 
@@ -657,7 +646,7 @@ npx -y @agentmemory/mcp
 | ポート競合 | `netstat -ano \| findstr :3111` でバインドを確認、kill するか `--port <N>` を使用 |
 | Docker をインストール済みなのにフォールバックがスキップされる | Docker Desktop が実際に動作している(システムトレイアイコン)ことを確認 |
 
-> 注意: `cargo install iii-engine` は存在しません — `iii` は crates.io に公開されていません。サポートされるインストール方法は、上記のビルド済みバイナリ、上流の `sh` インストールスクリプト(macOS/Linux のみ)、Docker イメージのみです。
+> 注意: iii **エンジン** はビルド済みバイナリであり、cargo クレートではありません — `cargo install` でインストールしようとしないでください。(iii **SDK** は crates.io、npm、PyPI に公開されていますが、agentmemory には不要です。)サポートされるエンジンのインストール方法はすべて v0.11.2 にピン留めされています: 上記のビルド済み v0.11.2 バイナリ、バージョンピン**付き**の上流 `sh` インストールスクリプト `curl -fsSL https://install.iii.dev/iii/main/install.sh | VERSION=0.11.2 sh`(macOS/Linux)、および Docker イメージ `iiidev/iii:0.11.2`。単なる `install.sh | sh` は **最新** のエンジンをインストールしますが、agentmemory はそれをサポートしていません — 必ず `VERSION=0.11.2` を渡してください。最も簡単なのは、`npx @agentmemory/agentmemory` を実行するだけです。これがピン留めされたエンジンを `~/.agentmemory/bin` に取得してくれます。
 
 ---
 
@@ -823,7 +812,7 @@ BM25 は箱から出してすぐにギリシャ文字、キリル文字、ヘブ
 agentmemory はプロバイダーを自動検出します。最良の結果を得るには、ローカル埋め込み(無料)をインストール:
 
 ```bash
-npm install @xenova/transformers
+npm install @huggingface/transformers
 ```
 
 | プロバイダー | モデル | コスト | 備考 |
@@ -1108,7 +1097,7 @@ agentmemory は環境から自動検出します。デフォルトでは、プ�
 | MiniMax | `MINIMAX_API_KEY` | Anthropic 互換 |
 | Gemini | `GEMINI_API_KEY` | 埋め込みも有効化 |
 | OpenRouter | `OPENROUTER_API_KEY` | 任意のモデル |
-| Claude 購読フォールバック | `AGENTMEMORY_ALLOW_AGENT_SDK=true` | オプトインのみ。`@anthropic-ai/claude-agent-sdk` セッションを生成 — 過去に無限の Stop-hook 再帰(#149 のフォローアップ)を引き起こしたため、もはやデフォルトではありません。 |
+| Claude 購読フォールバック | `AGENTMEMORY_ALLOW_AGENT_SDK=true` | オプトインのみ。`@anthropic-ai/claude-agent-sdk` セッションを生成 — 過去に無限の Stop-hook 再帰を引き起こしたため、もはやデフォルトではありません。 |
 
 ### コストを意識したモデル選択
 
@@ -1179,7 +1168,7 @@ netstat -ano | findstr ":3111 :3112 :3113 :49134"
 taskkill /F /PID <pid>
 ```
 
-`agentmemory stop` は正常終了時に worker と engine の pidfile を綺麗に回収します(#640、#474)。上の手動クリーンアップは、どちらの pidfile も残っていないクラッシュ後の状態を対象とします。
+`agentmemory stop` は正常終了時に worker と engine の pidfile を綺麗に回収します。上の手動クリーンアップは、どちらの pidfile も残っていないクラッシュ後の状態を対象とします。
 
 ### 設定ファイル
 
@@ -1244,7 +1233,7 @@ CONSOLIDATION_ENABLED=true
 # OPENAI_API_KEY_FOR_LLM=false             # Optional: set to false to skip OpenAI auto-detection
 #                                          # for LLM (useful if you only want OpenAI for embeddings)
 # Opt-in Claude-subscription fallback (spawns @anthropic-ai/claude-agent-sdk);
-# leave OFF unless you understand the Stop-hook recursion risk (#149 follow-up):
+# leave OFF unless you understand the Stop-hook recursion risk:
 # AGENTMEMORY_ALLOW_AGENT_SDK=true
 
 # Embedding provider (auto-detected, or override)
@@ -1278,7 +1267,7 @@ CONSOLIDATION_ENABLED=true
 # III_REST_PORT=3111
 
 # Features
-# AGENTMEMORY_AUTO_COMPRESS=false  # OFF by default (#138). When on,
+# AGENTMEMORY_AUTO_COMPRESS=false  # OFF by default. When on,
                                    # every PostToolUse hook calls your
                                    # LLM provider to compress the
                                    # observation — expect significant
@@ -1300,7 +1289,7 @@ CONSOLIDATION_ENABLED=true
                                    # session_patterns, records touched
                                    # files in project_context. Fire-
                                    # and-forget; does not block.
-# AGENTMEMORY_INJECT_CONTEXT=false # OFF by default (#143). When on:
+# AGENTMEMORY_INJECT_CONTEXT=false # OFF by default. When on:
                                    # - SessionStart may inject ~1-2K
                                    #   chars of project context into
                                    #   the first turn of each session

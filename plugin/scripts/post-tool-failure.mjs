@@ -43,6 +43,7 @@ async function main() {
 	} catch {
 		return;
 	}
+	if (!data || typeof data !== "object") return;
 	if (isSdkChildContext(data)) return;
 	if (data.is_interrupt || data.isInterrupt) return;
 	const sessionId = data.session_id || data.sessionId || "unknown";
@@ -68,7 +69,7 @@ async function main() {
 	}).catch(() => {});
 	setTimeout(() => process.exit(0), 500).unref();
 }
-main();
+main().catch(() => process.exit(0));
 //#endregion
 export {};
 

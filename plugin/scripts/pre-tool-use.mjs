@@ -23,6 +23,7 @@ async function main() {
 	} catch {
 		return;
 	}
+	if (!data || typeof data !== "object") return;
 	if (isSdkChildContext(data)) return;
 	const toolName = typeof data.tool_name === "string" ? data.tool_name : typeof data.toolName === "string" ? data.toolName : void 0;
 	if (!toolName) return;
@@ -77,7 +78,7 @@ async function main() {
 		}
 	} catch {}
 }
-main();
+main().catch(() => process.exit(0));
 //#endregion
 export {};
 

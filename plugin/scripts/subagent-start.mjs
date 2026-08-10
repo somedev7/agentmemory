@@ -44,6 +44,7 @@ async function main() {
 	} catch {
 		return;
 	}
+	if (!data || typeof data !== "object") return;
 	if (isSdkChildContext(data)) return;
 	const sessionId = data.session_id || data.sessionId || "unknown";
 	const agentId = data.agent_id || data.agentName;
@@ -66,7 +67,7 @@ async function main() {
 	}).catch(() => {});
 	setTimeout(() => process.exit(0), 500).unref();
 }
-main();
+main().catch(() => process.exit(0));
 //#endregion
 export {};
 
